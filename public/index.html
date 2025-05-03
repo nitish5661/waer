@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Login and AI Reply</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      padding: 20px;
+    }
+    .qr-code {
+      margin: 20px 0;
+    }
+    .message-box {
+      margin: 20px 0;
+    }
+    #ai-reply {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>WhatsApp AI Reply</h1>
+
+    <div id="qr-code" class="qr-code">
+      <h3>Scan QR to Log In</h3>
+      <img src="" alt="QR Code" id="qrImage" />
+    </div>
+
+    <div class="message-box">
+      <textarea id="message" placeholder="Type your message..." rows="5" cols="50"></textarea><br>
+      <button id="sendMessageBtn">Send Message</button>
+    </div>
+
+    <div class="message-box">
+      <textarea id="aiReply" readonly placeholder="AI Reply will appear here..." rows="5" cols="50"></textarea><br>
+      <button id="getAIReplyBtn">Get AI Reply</button>
+    </div>
+  </div>
+
+  <script>
+    // Function to get the QR code from the server and display it
+    async function getQRCode() {
+      const response = await fetch('/qr');
+      const data = await response.json();
+      document.getElementById('qrImage').src = data.qrImage;
+    }
+
+    // Function to get AI reply from the OpenAI model
+    async function getAIReply() {
+      const message = document.getElementById('message').value;
+      if (!message) {
+        alert('Please enter a message first!');
+        return;
+      }
+
+      const response = await fetch('/ai-reply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message })
+      });
+      const data = await response.json();
+
+      if (data.reply) {
+        document.getElementById('aiReply').value = data.reply;
+      } else {
+        alert('Error fetching AI reply');
+      }
+    }
+
+    // Function to send a WhatsApp message
+    async function sendMessage() {
+      const number = prompt('Enter the recipient number (with country code, e.g., 1234567890)');
+      const message = document.getElementById('message').value;
+
+      if (!number || !message) {
+        alert('Please enter both number and message!');
+        return;
+      }
+
+      const response = await fetch('/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ number, message })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Message sent successfully!');
+      } else {
+        alert('Error sending message');
+      }
+    }
+
+    // Set up event listeners
+    document.getElementById('getAIReplyBtn').addEventListener('click', getAIReply);
+    document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
+
+    // Initialize QR code
+    getQRCode();
+  </script>
+
+</body>
+</html>
