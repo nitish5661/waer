@@ -1,79 +1,74 @@
+// server.js
 const express = require('express');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const { Configuration, OpenAIApi } = require('openai');
-const http = require('http');
-const socketIO = require('socket.io');
 const qrcode = require('qrcode');
-const path = require('path');
-const fs = require('fs');
-
+const OpenAI = require('openai');
+require('dotenv').config();
 const app = express();
-const server = http.createServer(app);
-const io = socketIO(server);
+const PORT = process.env.PORT || 3000;
 
+// Set up OpenAI client (v4.x+)
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Initialize WhatsApp client
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  }
+    headless: true,
+    args: ['--no-sandbox'],
+  },
 });
 
-const openai = new OpenAIApi(new Configuration({
-  apiKey: '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'
-}));
-
+// Serve static files from 'public' folder
 app.use(express.static('public'));
-app.use(express.json());
+app.use(express.json()); // To handle JSON requests
 
-let qrReady = false;
-let qrData = '';
-
-client.on('qr', async (qr) => {
-  qrReady = true;
-  qrData = await qrcode.toDataURL(qr);
-  io.emit('qr', qrData);
-});
-
-client.on('ready', () => {
-  io.emit('ready');
-  console.log('WhatsApp is ready!');
-});
-
-client.on('message', async msg => {
-  const aiReply = await generateReply(msg.body);
-  io.emit('message', {
-    from: msg.from,
-    body: msg.body,
-    ai: aiReply
+// Endpoint to get QR code for WhatsApp login
+app.get('/qr', (req, res) => {
+  client.on('qr', async (qr) => {
+    const qrImage = await qrcode.toDataURL(qr);
+    res.json({ qrImage });
   });
 });
 
-app.post('/send', (req, res) => {
-  const { to, text } = req.body;
-  client.sendMessage(to, text);
-  res.sendStatus(200);
-});
-
-app.get('/qr', (req, res) => {
-  if (qrReady) {
-    res.json({ qr: qrData });
-  } else {
-    res.status(503).json({ message: 'QR not ready' });
-  }
-});
-
-async function generateReply(prompt) {
+// Endpoint to get AI reply
+app.post('/ai-reply', async (req, res) => {
   try {
-    const response = await openai.createChatCompletion({
+    const userMessage = req.body.message;
+    const completion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: userMessage }],
     });
-    return response.data.choices[0].message.content;
-  } catch (e) {
-    return '(AI error)';
+    res.json({ reply: completion.choices[0].message.content });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'AI response failed' });
   }
-}
+});
 
+// Endpoint to send a message via WhatsApp
+app.post('/send-message', async (req, res) => {
+  const { number, message } = req.body;
+
+  try {
+    const chat = await client.getChatById(`${number}@c.us`);
+    await chat.sendMessage(message);
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send message', details: err });
+  }
+});
+
+// Start WhatsApp client
 client.initialize();
 
-server.listen(3000, () => console.log('Server running on http://localhost:3000'));
+client.on('ready', () => {
+  console.log('WhatsApp client is ready');
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
