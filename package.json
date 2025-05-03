@@ -1,0 +1,14 @@
+{
+  "name": "whatsapp-ai-reply",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "whatsapp-web.js": "^1.22.1",
+    "qrcode": "^1.5.1",
+    "socket.io": "^4.7.2",
+    "body-parser": "^1.20.2"
+  }
+}
