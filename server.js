@@ -1,71 +1,79 @@
 const express = require('express');
-const http = require('http');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode');
+const { Configuration, OpenAIApi } = require('openai');
+const http = require('http');
 const socketIO = require('socket.io');
+const qrcode = require('qrcode');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
 const client = new Client({
-  authStrategy: new LocalAuth({ clientId: "bot" }), // Saved to .wwebjs_auth/
+  authStrategy: new LocalAuth(),
   puppeteer: {
-    headless: true,
-    args: ['--no-sandbox']
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   }
 });
 
-// Serve static files
-app.use(express.static(path.join(__dirname)));
+const openai = new OpenAIApi(new Configuration({
+  apiKey: 'YOUR_OPENAI_API_KEY'
+}));
 
-// Serve index.html
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+app.use(express.static('public'));
+app.use(express.json());
+
+let qrReady = false;
+let qrData = '';
+
+client.on('qr', async (qr) => {
+  qrReady = true;
+  qrData = await qrcode.toDataURL(qr);
+  io.emit('qr', qrData);
 });
 
-// Socket.IO for sending QR to front-end
-io.on('connection', socket => {
-  console.log('Client connected');
+client.on('ready', () => {
+  io.emit('ready');
+  console.log('WhatsApp is ready!');
+});
 
-  client.on('qr', async qr => {
-    const qrImageUrl = await qrcode.toDataURL(qr);
-    socket.emit('qr', qrImageUrl);
-  });
-
-  client.on('ready', () => {
-    console.log('Client is ready!');
-    socket.emit('ready', 'WhatsApp is ready!');
-  });
-
-  client.on('authenticated', () => {
-    console.log('Authenticated');
-    socket.emit('authenticated', 'Authenticated');
-  });
-
-  client.on('auth_failure', msg => {
-    console.error('AUTHENTICATION FAILURE', msg);
-    socket.emit('auth_failure', 'Auth failure');
-  });
-
-  client.on('disconnected', reason => {
-    console.log('Client was logged out', reason);
-    socket.emit('disconnected', reason);
-  });
-
-  // Optional: reply to messages
-  client.on('message', async msg => {
-    if (msg.body.toLowerCase() === 'hi') {
-      msg.reply('Hello! How can I help you today?');
-    }
+client.on('message', async msg => {
+  const aiReply = await generateReply(msg.body);
+  io.emit('message', {
+    from: msg.from,
+    body: msg.body,
+    ai: aiReply
   });
 });
+
+app.post('/send', (req, res) => {
+  const { to, text } = req.body;
+  client.sendMessage(to, text);
+  res.sendStatus(200);
+});
+
+app.get('/qr', (req, res) => {
+  if (qrReady) {
+    res.json({ qr: qrData });
+  } else {
+    res.status(503).json({ message: 'QR not ready' });
+  }
+});
+
+async function generateReply(prompt) {
+  try {
+    const response = await openai.createChatCompletion({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: prompt }]
+    });
+    return response.data.choices[0].message.content;
+  } catch (e) {
+    return '(AI error)';
+  }
+}
 
 client.initialize();
 
-// Start server
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+server.listen(3000, () => console.log('Server running on http://localhost:3000'));
