@@ -19,7 +19,7 @@ const client = new Client({
 });
 
 const openai = new OpenAIApi(new Configuration({
-  apiKey: 'YOUR_OPENAI_API_KEY'
+  apiKey: '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'
 }));
 
 app.use(express.static('public'));
