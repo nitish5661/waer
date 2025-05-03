@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WhatsApp AI Reply</title>
+</head>
+<body>
+  <h2>WhatsApp AI Reply</h2>
+  <p id="status">Loading QR...</p>
+  <img id="qrcode" src="" style="width: 250px; display: none;" />
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    const socket = io();
+
+    socket.on('qr', src => {
+      document.getElementById('qrcode').src = src;
+      document.getElementById('qrcode').style.display = 'block';
+      document.getElementById('status').textContent = 'Scan QR to login';
+    });
+
+    socket.on('ready', msg => {
+      document.getElementById('status').textContent = msg;
+      document.getElementById('qrcode').style.display = 'none';
+    });
+
+    socket.on('authenticated', msg => {
+      document.getElementById('status').textContent = msg;
+    });
+
+    socket.on('auth_failure', msg => {
+      document.getElementById('status').textContent = msg;
+    });
+
+    socket.on('disconnected', reason => {
+      document.getElementById('status').textContent = 'Disconnected: ' + reason;
+    });
+  </script>
+</body>
+</html>
