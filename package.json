@@ -1,19 +1,17 @@
 {
   "name": "whatsapp-ai-reply",
   "version": "1.0.0",
-  "description": "WhatsApp bot with AI auto-reply using OpenAI",
+  "description": "WhatsApp bot with AI reply and QR authentication",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": ["whatsapp", "ai", "openai", "chatgpt", "socket.io"],
-  "author": "Your Name",
-  "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
+    "openai": "^4.21.0",
     "qrcode-terminal": "^0.12.0",
+    "qrcode": "^1.5.1",
     "socket.io": "^4.7.2",
-    "whatsapp-web.js": "^1.21.0",
-    "openai": "^4.21.0"
+    "whatsapp-web.js": "^1.21.0"
   }
 }
