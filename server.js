@@ -7,6 +7,7 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
 // Set up OpenAI client (v4.x+)
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
