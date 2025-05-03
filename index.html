@@ -1,40 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
   <title>WhatsApp AI Reply</title>
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <h2>WhatsApp AI Reply</h2>
-  <p id="status">Loading QR...</p>
-  <img id="qrcode" src="" style="width: 250px; display: none;" />
-
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <h1>WhatsApp AI Reply</h1>
+  <div id="status">Loading QR...</div>
+  <div id="qr"></div>
+  <div id="messages"></div>
   <script>
     const socket = io();
 
-    socket.on('qr', src => {
-      document.getElementById('qrcode').src = src;
-      document.getElementById('qrcode').style.display = 'block';
-      document.getElementById('status').textContent = 'Scan QR to login';
+    socket.on('qr', qr => {
+      document.getElementById('status').textContent = 'Scan this QR code:';
+      const img = document.createElement('img');
+      img.src = qr;
+      img.width = 200;
+      document.getElementById('qr').appendChild(img);
     });
 
-    socket.on('ready', msg => {
-      document.getElementById('status').textContent = msg;
-      document.getElementById('qrcode').style.display = 'none';
+    socket.on('ready', () => {
+      document.getElementById('status').textContent = 'WhatsApp is ready!';
+      document.getElementById('qr').innerHTML = '';
     });
 
-    socket.on('authenticated', msg => {
-      document.getElementById('status').textContent = msg;
+    socket.on('message', data => {
+      const msgDiv = document.createElement('div');
+      msgDiv.innerHTML = `
+        <p><strong>${data.from}:</strong> ${data.body}</p>
+        <p>🤖 <em>AI Suggestion:</em> ${data.ai}</p>
+        <input placeholder="Reply...">
+        <button onclick="sendReply('${data.from}', this.previousElementSibling.value)">Send</button>
+        <hr>
+      `;
+      document.getElementById('messages').appendChild(msgDiv);
     });
 
-    socket.on('auth_failure', msg => {
-      document.getElementById('status').textContent = msg;
-    });
-
-    socket.on('disconnected', reason => {
-      document.getElementById('status').textContent = 'Disconnected: ' + reason;
-    });
+    function sendReply(to, text) {
+      fetch('/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, text })
+      });
+    }
   </script>
 </body>
 </html>
